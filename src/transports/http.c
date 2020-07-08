@@ -142,6 +142,7 @@ static int handle_auth(
 	fprintf(stderr, "XXX IF %s\n", server->url.username);
 	fprintf(stderr, "XXX IF %s\n", server->url.password);
 	/* Start with URL-specified credentials, if there were any. */
+		server->url_cred_presented = 0;
 	if ((allowed_credtypes & GIT_CREDENTIAL_USERPASS_PLAINTEXT) &&
 	    !server->url_cred_presented &&
 	    server->url.username &&
