@@ -381,10 +381,13 @@ static int on_headers_complete(http_parser *parser)
 	/* Stop parsing. */
 	http_parser_pause(parser, 1);
 
-	if (ctx->response->content_type || ctx->response->chunked)
+	if (ctx->response->content_type || ctx->response->chunked) {
+    fprintf(stderr, "XXX READING_BODY, CHUNKED, %d\n", ctx->response->chunked);
+    fprintf(stderr, "XXX READING_BODY, content_type, %s\n", ctx->response->content_type);
 		ctx->client->state = READING_BODY;
-	else
+  } else {
 		ctx->client->state = DONE;
+  }
 
 	return 0;
 }
@@ -923,7 +926,8 @@ static int proxy_connect(
 	    (error = git_http_client_skip_body(client)) < 0)
 		goto done;
 
-	assert(client->state == DONE);
+  fprintf(stderr, "XXX state %d\n", client->state);
+	assert(client->state == READING_BODY || client->state == DONE);
 
 	if (response.status == GIT_HTTP_STATUS_PROXY_AUTHENTICATION_REQUIRED) {
 		save_early_response(client, &response);
