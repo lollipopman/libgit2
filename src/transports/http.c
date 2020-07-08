@@ -136,12 +136,14 @@ static int handle_auth(
 	if (server->cred)
 		free_cred(&server->cred);
 
+  fprintf(stderr, "XXX ERROR 1 %d\n", error);
 	/* Start with URL-specified credentials, if there were any. */
 	if ((allowed_credtypes & GIT_CREDENTIAL_USERPASS_PLAINTEXT) &&
 	    !server->url_cred_presented &&
 	    server->url.username &&
 	    server->url.password) {
 		error = apply_url_credentials(&server->cred, allowed_credtypes, server->url.username, server->url.password);
+    fprintf(stderr, "XXX ERROR 2 %d\n", error);
 		server->url_cred_presented = 1;
 
 		/* treat GIT_PASSTHROUGH as if callback isn't set */
@@ -149,14 +151,18 @@ static int handle_auth(
 			error = 1;
 	}
 
+  fprintf(stderr, "XXX ERROR 3 %d\n", error);
 	if (error > 0 && callback) {
 		error = callback(&server->cred, url, server->url.username, allowed_credtypes, callback_payload);
+    fprintf(stderr, "XXX ERROR 4 %d\n", error);
 
 		/* treat GIT_PASSTHROUGH as if callback isn't set */
 		if (error == GIT_PASSTHROUGH)
 			error = 1;
 	}
 
+  fprintf(stderr, "XXX ERROR 5 %d\n", error);
+  fprintf(stderr, "XXX NO CB\n");
 	if (error > 0) {
 		git_error_set(GIT_ERROR_HTTP, "%s authentication required but no callback set", server_type);
 		error = -1;
