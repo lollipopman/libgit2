@@ -142,7 +142,6 @@ static int handle_auth(
 	fprintf(stderr, "XXX IF %s\n", server->url.username);
 	fprintf(stderr, "XXX IF %s\n", server->url.password);
 	/* Start with URL-specified credentials, if there were any. */
-		server->url_cred_presented = 0;
 	if ((allowed_credtypes & GIT_CREDENTIAL_USERPASS_PLAINTEXT) &&
 	    !server->url_cred_presented &&
 	    server->url.username &&
@@ -346,6 +345,7 @@ static int generate_request(
 	http_subtransport *transport = OWNING_SUBTRANSPORT(stream);
 	bool use_proxy = false;
 	int error;
+  git_credential_userpass_plaintext *tmpcred;
 
 	if ((error = git_net_url_joinpath(url,
 		&transport->server.url, stream->service->url)) < 0 ||
@@ -355,6 +355,11 @@ static int generate_request(
 	request->method = stream->service->method;
 	request->url = url;
 	request->credentials = transport->server.cred;
+  if (request->credentials) {
+    tmpcred = (git_credential_userpass_plaintext *)request->credentials;
+    fprintf(stderr, "XXX REQ %s\n", tmpcred->username);
+    fprintf(stderr, "XXX REQ %s\n", tmpcred->password);
+  }
 	request->proxy = use_proxy ? &transport->proxy.url : NULL;
 	request->proxy_credentials = transport->proxy.cred;
 	request->custom_headers = &transport->owner->custom_headers;

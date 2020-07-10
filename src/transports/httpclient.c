@@ -22,6 +22,7 @@
 #include "streams/socket.h"
 #include "streams/tls.h"
 #include "auth.h"
+#include <stdio.h>
 
 static git_http_auth_scheme auth_schemes[] = {
 	{ GIT_HTTP_AUTH_NEGOTIATE, "Negotiate", GIT_CREDENTIAL_DEFAULT, git_http_auth_negotiate },
@@ -194,12 +195,14 @@ static int on_header_complete(http_parser *parser)
 	           !strcasecmp("chunked", value->ptr)) {
 			ctx->response->chunked = 1;
 	} else if (!strcasecmp("Proxy-Authenticate", git_buf_cstr(name))) {
+    fprintf(stderr, "XXX RESP HEADER %s\n", name->ptr);
 		char *dup = git__strndup(value->ptr, value->size);
 		GIT_ERROR_CHECK_ALLOC(dup);
 
 		if (git_vector_insert(&client->proxy.auth_challenges, dup) < 0)
 			return -1;
 	} else if (!strcasecmp("WWW-Authenticate", name->ptr)) {
+    fprintf(stderr, "XXX RESP HEADER %s\n", name->ptr);
 		char *dup = git__strndup(value->ptr, value->size);
 		GIT_ERROR_CHECK_ALLOC(dup);
 
@@ -562,6 +565,7 @@ static int apply_credentials(
 	git_buf token = GIT_BUF_INIT;
 	int error = 0;
 
+  if (server->url.host) fprintf(stderr, "XXX APPLY_CREDS FOR %s\n", server->url.host);
 	/* We've started a new request without creds; free the context. */
 	if (auth && !credentials) {
 		free_auth_context(server);
@@ -569,8 +573,15 @@ static int apply_credentials(
 	}
 
 	/* We haven't authenticated, nor were we asked to.  Nothing to do. */
-	if (!auth && !git_vector_length(challenges))
+	if (auth) {
+    fprintf(stderr, "XXX WITH AUTH CONTEXT\n");
+  } else {
+    fprintf(stderr, "XXX NO AUTH CONTEXT\n");
+  }
+  fprintf(stderr, "XXX CHALLENGES: %ld\n", git_vector_length(challenges));
+	if (!auth && !git_vector_length(challenges)) {
 		return 0;
+  }
 
 	if (!auth) {
 		challenge = init_auth_context(server, challenges, credentials);
@@ -617,6 +628,13 @@ GIT_INLINE(int) apply_server_credentials(
 	git_http_client *client,
 	git_http_request *request)
 {
+
+  git_credential_userpass_plaintext *tmpcred;
+  if (request->credentials) {
+    tmpcred = (git_credential_userpass_plaintext *)request->credentials;
+    fprintf(stderr, "XXX APPLY_SERVER_CREDS %s\n", tmpcred->username);
+    fprintf(stderr, "XXX APPLY_SERVER_CREDS %s\n", tmpcred->password);
+  }
 	return apply_credentials(buf,
 	                         &client->server,
 	                         "Authorization",
@@ -913,6 +931,7 @@ static int proxy_connect(
 		client->proxy_connected = 1;
 	}
 
+  fprintf(stderr, "XXX CURRENT_SERVER PROXY\n");
 	client->current_server = PROXY;
 	client->state = SENDING_REQUEST;
 
@@ -926,7 +945,7 @@ static int proxy_connect(
 	    (error = git_http_client_skip_body(client)) < 0)
 		goto done;
 
-  fprintf(stderr, "XXX state %d\n", client->state);
+  fprintf(stderr, "XXX HTTP STATE %d\n", client->state);
 	assert(client->state == READING_BODY || client->state == DONE);
 
 	if (response.status == GIT_HTTP_STATUS_PROXY_AUTHENTICATION_REQUIRED) {
@@ -955,6 +974,7 @@ static int server_connect(git_http_client *client)
 	void *cert_payload;
 	int error;
 
+  fprintf(stderr, "XXX CURRENT_SERVER SERVER\n");
 	client->current_server = SERVER;
 
 	if (client->proxy.stream)
@@ -1378,8 +1398,16 @@ int git_http_client_read_response(
 
 	git_http_response_dispose(response);
 
-	git_vector_free_deep(&client->server.auth_challenges);
-	git_vector_free_deep(&client->proxy.auth_challenges);
+  /* fprintf(stderr, "XXX FREEING CHALLENGES\n"); */
+	if (client->current_server == PROXY) {
+    fprintf(stderr, "XXX FREEING CHALLENGES IN PROXY\n");
+	  git_vector_free_deep(&client->proxy.auth_challenges);
+  } else if(client->current_server == SERVER) {
+    fprintf(stderr, "XXX FREEING CHALLENGES IN SERVER\n");
+	  git_vector_free_deep(&client->server.auth_challenges);
+  }
+	/* git_vector_free_deep(&client->server.auth_challenges); */
+	/* git_vector_free_deep(&client->proxy.auth_challenges); */
 
 	client->state = READING_RESPONSE;
 	client->keepalive = 0;
@@ -1517,6 +1545,7 @@ int git_http_client_new(
 
 GIT_INLINE(void) http_server_close(git_http_server *server)
 {
+  fprintf(stderr, "XXX SERVER CLOSE\n");
 	if (server->stream) {
 		git_stream_close(server->stream);
 		git_stream_free(server->stream);
