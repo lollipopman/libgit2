@@ -142,7 +142,6 @@ static int handle_auth(
 	fprintf(stderr, "XXX IF %s\n", server->url.username);
 	fprintf(stderr, "XXX IF %s\n", server->url.password);
 	/* Start with URL-specified credentials, if there were any. */
-		server->url_cred_presented = 0;
 	if ((allowed_credtypes & GIT_CREDENTIAL_USERPASS_PLAINTEXT) &&
 	    !server->url_cred_presented &&
 	    server->url.username &&
@@ -346,6 +345,7 @@ static int generate_request(
 	http_subtransport *transport = OWNING_SUBTRANSPORT(stream);
 	bool use_proxy = false;
 	int error;
+  git_credential_userpass_plaintext *tmpcred;
 
 	if ((error = git_net_url_joinpath(url,
 		&transport->server.url, stream->service->url)) < 0 ||
@@ -355,6 +355,11 @@ static int generate_request(
 	request->method = stream->service->method;
 	request->url = url;
 	request->credentials = transport->server.cred;
+  if (request->credentials) {
+    tmpcred = (git_credential_userpass_plaintext *)request->credentials;
+    fprintf(stderr, "XXX REQ %s\n", tmpcred->username);
+    fprintf(stderr, "XXX REQ %s\n", tmpcred->password);
+  }
 	request->proxy = use_proxy ? &transport->proxy.url : NULL;
 	request->proxy_credentials = transport->proxy.cred;
 	request->custom_headers = &transport->owner->custom_headers;
@@ -412,7 +417,7 @@ static int http_stream_read(
 		    (error = git_http_client_send_request(
 			transport->http_client, &request)) < 0 ||
 		    (error = git_http_client_read_response(
-			    &response, transport->http_client)) < 0 ||
+			    &response, transport->http_client, SERVER)) < 0 ||
 		    (error = handle_response(&complete, stream, &response, true)) < 0)
 			goto done;
 
@@ -483,7 +488,7 @@ static int send_probe(http_stream *stream)
 		if ((error = generate_request(&url, &request, stream, len)) < 0 ||
 		    (error = git_http_client_send_request(client, &request)) < 0 ||
 		    (error = git_http_client_send_body(client, probe, len)) < 0 ||
-		    (error = git_http_client_read_response(&response, client)) < 0 ||
+		    (error = git_http_client_read_response(&response, client, SERVER)) < 0 ||
 		    (error = git_http_client_skip_body(client)) < 0 ||
 		    (error = handle_response(&complete, stream, &response, true)) < 0)
 			goto done;
@@ -549,7 +554,7 @@ static int http_stream_write(
 			 * it's something other than a 100 and we should
 			 * deal with the response somehow.
 			 */
-			if ((error = git_http_client_read_response(&response, transport->http_client)) < 0 ||
+			if ((error = git_http_client_read_response(&response, transport->http_client, SERVER)) < 0 ||
 			    (error = handle_response(&complete, stream, &response, true)) < 0)
 			    goto done;
 		} else {
@@ -596,7 +601,7 @@ static int http_stream_read_response(
 	*out_len = 0;
 
 	if (stream->state == HTTP_STATE_SENDING_REQUEST) {
-		if ((error = git_http_client_read_response(&response, client)) < 0 ||
+		if ((error = git_http_client_read_response(&response, client, SERVER)) < 0 ||
 		    (error = handle_response(&complete, stream, &response, false)) < 0)
 		    goto done;
 

@@ -29,6 +29,8 @@ static int basic_next_token(
 
 	cred = (git_credential_userpass_plaintext *)c;
 
+  fprintf(stderr, "XXX AUTH USER %s\n", cred->username);
+  fprintf(stderr, "XXX AUTH PASS %s\n", cred->password);
 	git_buf_printf(&raw, "%s:%s", cred->username, cred->password);
 
 	if (git_buf_oom(&raw) ||

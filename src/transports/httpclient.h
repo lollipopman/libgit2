@@ -125,6 +125,11 @@ extern int git_http_client_send_body(
 	const char *buffer,
 	size_t buffer_len);
 
+typedef enum {
+	PROXY = 1,
+	SERVER
+} git_http_server_t;
+
 /**
  * Reads the headers of a response to a request.  This will consume the
  * entirety of the headers of a response from the server.  The body (if any)
@@ -136,7 +141,8 @@ extern int git_http_client_send_body(
  */
 extern int git_http_client_read_response(
 	git_http_response *response,
-	git_http_client *client);
+	git_http_client *client,
+	git_http_server_t current_server);
 
 /**
  * Reads some or all of the body of a response.  At most buffer_size (or
